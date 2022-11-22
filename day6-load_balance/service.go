@@ -18,12 +18,15 @@ func (m *methodType) NumCalls() uint64 {
 	return atomic.LoadUint64(&m.numCalls)
 }
 
+// 构造两个reflect.Value空对象
 func (m *methodType) newArgv() reflect.Value {
 	var argv reflect.Value
+	//arg可能是指针类型，也可能是值类型
 	// arg may be a pointer type, or a value type
 	if m.ArgType.Kind() == reflect.Ptr {
+		//如果是指针的话
 		argv = reflect.New(m.ArgType.Elem())
-	} else {
+	} else { //如果是值类型的话
 		argv = reflect.New(m.ArgType).Elem()
 	}
 	return argv
@@ -31,6 +34,7 @@ func (m *methodType) newArgv() reflect.Value {
 
 func (m *methodType) newReplyv() reflect.Value {
 	// reply must be a pointer type
+	//reply一定是指针类型
 	replyv := reflect.New(m.ReplyType.Elem())
 	switch m.ReplyType.Elem().Kind() {
 	case reflect.Map:

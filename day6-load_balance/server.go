@@ -35,6 +35,7 @@ var DefaultOption = &Option{
 }
 
 // Server represents an RPC Server.
+// RPC服务器
 type Server struct {
 	serviceMap sync.Map
 }
@@ -49,6 +50,7 @@ var DefaultServer = NewServer()
 
 // ServeConn runs the server on a single connection.
 // ServeConn blocks, serving the connection until the client hangs up.
+// 先协议交换，再serveCodec
 func (server *Server) ServeConn(conn io.ReadWriteCloser) {
 	defer func() { _ = conn.Close() }()
 	var opt Option
@@ -135,15 +137,17 @@ func (server *Server) readRequest(cc codec.Codec) (*request, error) {
 	if err != nil {
 		return nil, err
 	}
-	req := &request{h: h}
+	req := &request{h: h} //读到的东西要封装到req中
 	req.svc, req.mtype, err = server.findService(h.ServiceMethod)
 	if err != nil {
 		return req, err
 	}
+	//通过req.mtype来构造另外两个字段
 	req.argv = req.mtype.newArgv()
 	req.replyv = req.mtype.newReplyv()
 
 	// make sure that argvi is a pointer, ReadBody need a pointer as parameter
+	//要确保argvi是一个指针，ReadBody需要一个指针作为参数（否则就是值传递？？）
 	argvi := req.argv.Interface()
 	if req.argv.Type().Kind() != reflect.Ptr {
 		argvi = req.argv.Addr().Interface()
@@ -169,7 +173,7 @@ func (server *Server) handleRequest(cc codec.Codec, req *request, sending *sync.
 	sent := make(chan struct{})
 	go func() {
 		err := req.svc.call(req.mtype, req.argv, req.replyv)
-		called <- struct{}{}
+		called <- struct{}{} //超时处理
 		if err != nil {
 			req.h.Error = err.Error()
 			server.sendResponse(cc, req.h, invalidRequest, sending)
@@ -177,7 +181,7 @@ func (server *Server) handleRequest(cc codec.Codec, req *request, sending *sync.
 			return
 		}
 		server.sendResponse(cc, req.h, req.replyv.Interface(), sending)
-		sent <- struct{}{}
+		sent <- struct{}{} //超时处理
 	}()
 
 	if timeout == 0 {
@@ -185,7 +189,7 @@ func (server *Server) handleRequest(cc codec.Codec, req *request, sending *sync.
 		<-sent
 		return
 	}
-	select {
+	select { //超时处理
 	case <-time.After(timeout):
 		req.h.Error = fmt.Sprintf("rpc server: request handle timeout: expect within %s", timeout)
 		server.sendResponse(cc, req.h, invalidRequest, sending)
