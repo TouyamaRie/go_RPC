@@ -65,7 +65,7 @@ func (xc *XClient) call(rpcAddr string, ctx context.Context, serviceMethod strin
 // and returns its error status.
 // xc will choose a proper server.
 func (xc *XClient) Call(ctx context.Context, serviceMethod string, args, reply interface{}) error {
-	rpcAddr, err := xc.d.Get(xc.mode) //根据模式来选择服务地址
+	rpcAddr, err := xc.d.Get(xc.mode, serviceMethod) //根据模式来选择服务地址
 	if err != nil {
 		return err
 	}
